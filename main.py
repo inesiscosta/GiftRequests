@@ -9,7 +9,6 @@ def main():
     n, m, t = map(int, data[0].split()) # n - num factories, m - num countries, t - num children
 
     # Used to check if the problem has a solution
-    total_stock = total_min_req = 0
     country_stock = [0] * (m + 1)
 
     # Parse info regarding each of the n factories
@@ -19,18 +18,18 @@ def main():
         if factory_info[2] > 0: # Only if the factory has stock > 0
             factories[factory_info[0]] = factory_info # {id_fab: [id_fab, id_country, stock]}
             country_stock[factory_info[1]] += factory_info[2]
-            total_stock += factory_info[2]
 
     # Parse info regarding each of the m countries
     countries = {}
+    min_required_toys = 0
     for i in range(n + 1, n + m + 1):
         country_info = list(map(int, data[i].split()))
         if country_info[1] > 0 and country_info[2] > 0:  # Only if the country has an export limit > 0 and min_toys_required > 0
             countries[country_info[0]] = country_info # {id_country: [id_country, export_limit, min_toys_required]}
-            total_min_req += country_info[2]
-
-    if total_stock < total_min_req: # Early exit if the problem can't be solved
-        print(-1)
+            min_required_toys += country_info[2]
+    
+    if sum(country_stock) < min_required_toys: # Early exit if the problem can't be solved
+        print("-1")
         return
 
     # Parse the requests of t children
@@ -45,8 +44,13 @@ def main():
     m = len(countries)
     t = len(requests)
 
-    factories_per_country = {j: set(i for i in factories.keys() if factories[i][1] == j) for j in countries.keys()} # Factories for each country {country_id: {factory_ids}}
-    requests_per_country = {j: set(k for k in range(t) if requests[k][1] == j) for j in countries.keys()} # Request indices for each country {country_id: {request_indices}}
+    factories_per_country = {} # Factories for each country {country_id: {factory_ids}}
+    requests_per_country = {} # Request indices for each country {country_id: {request_indices}}
+
+    for j in countries.keys():
+        factories_per_country[j] = set(i for i in factories.keys() if factories[i][1] == j)
+        requests_per_country[j] = set(k for k in range(t) if requests[k][1] == j)
+    
     valid_factories = {k: set(requests[k][2]) for k in range(t)} # Ensure that children only receive gifts from requested factories
 
     problem = pulp.LpProblem(sense=pulp.LpMaximize)
@@ -68,14 +72,14 @@ def main():
 
     # A country cannot export more gifts than its export limit
     for j in countries.keys():
-        problem += pulp.lpSum(happy[k,i] for k in range(t) for i in factories_per_country[j] if i in valid_factories[k]) <= countries[j][1]
+        problem += pulp.lpSum(happy[k,i] for k in range(t) for i in factories_per_country[j] if i in valid_factories[k] and requests[k][1] != j) <= countries[j][1]
         
         # Each country must receive at least its minimum required gifts
         problem += pulp.lpSum(happy[k,i] for k in requests_per_country[j] for i in valid_factories[k]) >= countries[j][2]
 
     # Solve the problem and check if it has an optimal solution
     if problem.solve(PULP_CBC_CMD(msg=False, threads=2, warmStart=True)) != pulp.LpStatusOptimal:
-        print(-1)
+        print("-1")
         return
 
     # Get the number of satisfied requests
