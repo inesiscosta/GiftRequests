@@ -67,33 +67,33 @@ def main():
   
   # Only passes one time for each child.
   for k in range(t):
-      # Each child can receive at most one gift.
-      child_assignments.append((k, valid_factories[k]))
-      
-      # Check the number of gifts requested from each factory, so that it doesn't exceed it's stock.
-      for i in valid_factories[k]:
-          factory_sums[i].append((k, i))
-      
-      # Check if the factories doesn't exceed the maximun permited exports for the country.
-      for j in countries:
-          for i in factories_per_country[j]:
-              if i in valid_factories[k] and requests[k][1] != j:
-                  country_exports[j].append((k, i))
+    # Each child can receive at most one gift.
+    child_assignments.append((k, valid_factories[k]))
+    
+    # Check the number of gifts requested from each factory, so that it doesn't exceed it's stock.
+    for i in valid_factories[k]:
+      factory_sums[i].append((k, i))
+    
+    # Check if the factories doesn't exceed the maximun permited exports for the country.
+    for j in countries:
+      for i in factories_per_country[j]:
+        if i in valid_factories[k] and requests[k][1] != j:
+            country_exports[j].append((k, i))
   
   # Create the constraints using pre calculated values.
   for k, valid_facs in child_assignments:
-      problem += lpSum(happy[k, i] for i in valid_facs) <= 1
+    problem += lpSum(happy[k, i] for i in valid_facs) <= 1
   
   # A factory cannot distribute more gifts than it has in stock.
   for i in factories:
-      problem += lpSum(happy[k, i] for k, i in factory_sums[i]) <= factories[i][2]
+    problem += lpSum(happy[k, i] for k, i in factory_sums[i]) <= factories[i][2]
   
   for j in countries:
-      # A country cannot export more gifts than its export limit.
-      problem += lpSum(happy[k, i] for k, i in country_exports[j]) <= countries[j][1]
+    # A country cannot export more gifts than its export limit.
+    problem += lpSum(happy[k, i] for k, i in country_exports[j]) <= countries[j][1]
 
-      # A country must receive at least its minimum number required gifts.
-      problem += lpSum(happy[k, i] for k in requests_per_country[j] for i in valid_factories[k]) >= countries[j][2]
+    # A country must receive at least its minimum number required gifts.
+    problem += lpSum(happy[k, i] for k in requests_per_country[j] for i in valid_factories[k]) >= countries[j][2]
 
   # Solve the problem and check if it has an optimal solution.
   if problem.solve(PULP_CBC_CMD(msg=False, threads=4)) == LpStatusOptimal:
