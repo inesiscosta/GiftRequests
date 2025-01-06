@@ -1,6 +1,6 @@
 #pylint: skip-file
 import sys
-from pulp import LpProblem, LpMaximize, LpVariable, lpSum, LpStatusOptimal, PULP_CBC_CMD, value
+from pulp import LpProblem, LpMaximize, LpVariable, lpSum, LpStatusOptimal, GLPK, value
 
 def main():
   data = sys.stdin.read().splitlines()
@@ -78,7 +78,7 @@ def main():
     for j in countries:
       for i in factories_per_country[j]:
         if i in valid_factories[k] and requests[k][1] != j:
-            country_exports[j].append((k, i))
+          country_exports[j].append((k, i))
   
   # Create the constraints using pre calculated values.
   for k, valid_facs in child_assignments:
@@ -96,7 +96,7 @@ def main():
     problem += lpSum(happy[k, i] for k in requests_per_country[j] for i in valid_factories[k]) >= countries[j][2]
 
   # Solve the problem and check if it has an optimal solution.
-  if problem.solve(PULP_CBC_CMD(msg=False, threads=4)) == LpStatusOptimal:
+  if problem.solve(GLPK(msg=False)) == LpStatusOptimal:
     print(int(value(problem.objective)))
   else:
     print("-1")
