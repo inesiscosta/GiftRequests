@@ -25,6 +25,11 @@ jobs:
         python -m pip install --upgrade pip
         pip install pulp
 
+    - name: Install GLPK
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y glpk-utils
+
     - name: Run tests
       run: |
         python -m pytest -v --tb=short test_public.py
