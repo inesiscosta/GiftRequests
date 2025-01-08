@@ -7,7 +7,6 @@ def main():
     
   n, m, t = map(int, data[0].split())  # n - num factories, m - num countries, t - num children
 
-  stock_per_country = {} # {id_country: stock}
   factories_per_country = {} # {id_country: factory_ids}
   requests_per_country = {} # {id_country: child_ids}
 
@@ -17,35 +16,31 @@ def main():
     factory_info = list(map(int, data[line].split())) # [id_factory, id_country, stock]
     if factory_info[2] > 0: # A factory is only relevant if its stock it > 0.
       factories[factory_info[0]] = factory_info[1:]
-      # Add this factory's stock to the country's total stock.
-      stock_per_country[factory_info[1]] = (stock_per_country.get(factory_info[1], 0) + factory_info[2])
       factories_per_country.setdefault(factory_info[1], set()).add(factory_info[0])
 
   # Parse info regarding each of the m countries.
   countries = {} # {id_country: [export_limit, min_gifts_required]}
-  global_min_required_gifts = 0
   for line in range(n + 1, n + m + 1):
     country_info = list(map(int, data[line].split())) # [id_country, export_limit, min_gifts_required]
     # A country is only relevant if its export limit and minimum number of gifts required are > 0
     if country_info[1] > 0 and country_info[2] > 0:
       countries[country_info[0]] = country_info[1:]
-      global_min_required_gifts += country_info[2]
-  
-  # Early exit if total available stock globally is less than the total minimum number of required gifts.
-  if sum(stock_per_country.values()) < global_min_required_gifts:
-    print("-1")
-    return
 
   # Parse info regarding the requests of each of the t children.
   requests = {}
   requested_factories = {}
   for line in range(n + m + 1, n + m + t + 1):
     request_info = list(map(int, data[line].split())) # [id_child, id_country, factory_ids]
-    valid_factories = list(filter(lambda id_factory: id_factory in factories, request_info[2:]))
+    valid_factories = [factory for factory in request_info[2:] if factory in factories]
     if valid_factories: # Only consider requests with valid factories.
       requests[request_info[0]] = [request_info[1], valid_factories] # {id_child: [id_country, factory_ids]}
       requests_per_country.setdefault(request_info[1], set()).add(request_info[0])
       requested_factories[request_info[0]] = set(valid_factories)
+
+  for country in countries:
+    if len(requests_per_country[country]) < countries[country][1]:
+      print(-1)
+      return
 
   problem = LpProblem(sense=LpMaximize)
   
