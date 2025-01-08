@@ -13,8 +13,8 @@ def main():
 
   # Parse info regarding each of the n factories.
   factories = {} # {id_factory: [id_country, stock]}
-  for id_factory in range(1, n + 1):
-    factory_info = list(map(int, data[id_factory].split())) # [factory_id, id_country, stock]
+  for line in range(1, n + 1):
+    factory_info = list(map(int, data[line].split())) # [id_factory, id_country, stock]
     if factory_info[2] > 0: # A factory is only relevant if its stock it > 0.
       factories[factory_info[0]] = factory_info[1:]
       # Add this factory's stock to the country's total stock.
@@ -24,8 +24,8 @@ def main():
   # Parse info regarding each of the m countries.
   countries = {} # {id_country: [export_limit, min_gifts_required]}
   global_min_required_gifts = 0
-  for id_factory in range(n + 1, n + m + 1):
-    country_info = list(map(int, data[id_factory].split())) # [id_country, export_limit, min_gifts_required]
+  for line in range(n + 1, n + m + 1):
+    country_info = list(map(int, data[line].split())) # [id_country, export_limit, min_gifts_required]
     # A country is only relevant if its export limit and minimum number of gifts required are > 0
     if country_info[1] > 0 and country_info[2] > 0:
       countries[country_info[0]] = country_info[1:]
@@ -39,15 +39,13 @@ def main():
   # Parse info regarding the requests of each of the t children.
   requests = {}
   requested_factories = {}
-  for id_factory in range(n + m + 1, n + m + t + 1):
-    request_info = list(map(int, data[id_factory].split())) # [id_child, id_country, factory_ids]
-    valid_factories = list(filter(lambda factory_id: factory_id in factories.keys(), request_info[2:]))
+  for line in range(n + m + 1, n + m + t + 1):
+    request_info = list(map(int, data[line].split())) # [id_child, id_country, factory_ids]
+    valid_factories = list(filter(lambda id_factory: id_factory in factories, request_info[2:]))
     if valid_factories: # Only consider requests with valid factories.
       requests[request_info[0]] = [request_info[1], valid_factories] # {id_child: [id_country, factory_ids]}
       requests_per_country.setdefault(request_info[1], set()).add(request_info[0])
       requested_factories[request_info[0]] = set(valid_factories)
-
-  t = len(requests)
 
   problem = LpProblem(sense=LpMaximize)
   
@@ -58,8 +56,8 @@ def main():
   problem += lpSum(happy[id_child, id_factory] for id_child in requests for id_factory in requested_factories[id_child])
 
   # Create data structs used to make the constraints for the LP solver.
-  num_requests_per_factory = {factory_id: 0 for factory_id in factories}
-  country_exports = {country_id: [] for country_id in countries}
+  num_requests_per_factory = {id_factory: [] for id_factory in factories}
+  country_exports = {id_country: [] for id_country in countries}
   children = []
   
   for id_child in requests:
@@ -68,7 +66,7 @@ def main():
     
     # A factory cannot distribute more gifts that it has in stock.
     for id_factory in requested_factories[id_child]:
-      num_requests_per_factory[id_factory] += 1
+      num_requests_per_factory[id_factory].append((id_child, id_factory))
     
     # Check if the factories don't exceed the maximum permitted exports for the country.
     for id_country in countries:
@@ -82,7 +80,7 @@ def main():
   
   # A factory cannot distribute more gifts than it has in stock.
   for id_factory in factories:
-    problem += lpSum(happy[id_child, id_factory] for id_child in requests if id_factory in requested_factories[id_child]) <= factories[id_factory][1]
+    problem += lpSum(happy[id_child, id_factory] for id_child, id_factory in num_requests_per_factory[id_factory]) <= factories[id_factory][1]
   
   for id_country in countries:
     # A country cannot export more gifts than its export limit.

@@ -103,4 +103,3 @@ if __name__ == "__main__":
     for i in range(num_children):
         c_data = children_data[i+1]
         print(" ".join(map(str, c_data)))
-
