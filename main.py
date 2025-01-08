@@ -1,99 +1,95 @@
 #pylint: skip-file
 import sys
-from pulp import LpProblem, LpMaximize, LpVariable, lpSum, LpStatusOptimal, GLPK, value
+from pulp import GLPK, LpMaximize, LpProblem, LpStatusOptimal, LpVariable, lpSum, value
 
 def main():
   data = sys.stdin.read().splitlines()
     
   n, m, t = map(int, data[0].split())  # n - num factories, m - num countries, t - num children
 
-  # Keep track of total stock per country.
-  country_stock = [0] * (m + 1)
-  
+  stock_per_country = {} # {id_country: stock}
+  factories_per_country = {} # {id_country: factory_ids}
+  requests_per_country = {} # {id_country: child_ids}
+
   # Parse info regarding each of the n factories.
-  factories = {}
-  for i in range(1, n + 1):
-    factory_info = list(map(int, data[i].split()))
-    if factory_info[2] > 0:  # A factory is only relevant if its stock it > 0.
-      factories[factory_info[0]] = factory_info  # {id_fab: [id_fab, id_country, stock]}
-      country_stock[factory_info[1]] += factory_info[2] # Update th country's total stock.
+  factories = {} # {id_factory: [id_country, stock]}
+  for id_factory in range(1, n + 1):
+    factory_info = list(map(int, data[id_factory].split())) # [factory_id, id_country, stock]
+    if factory_info[2] > 0: # A factory is only relevant if its stock it > 0.
+      factories[factory_info[0]] = factory_info[1:]
+      # Add this factory's stock to the country's total stock.
+      stock_per_country[factory_info[1]] = (stock_per_country.get(factory_info[1], 0) + factory_info[2])
+      factories_per_country.setdefault(factory_info[1], set()).add(factory_info[0])
 
   # Parse info regarding each of the m countries.
-  countries = {}
-  min_required_toys = 0
-  for i in range(n + 1, n + m + 1):
-    country_info = list(map(int, data[i].split()))
-    if country_info[1] > 0 and country_info[2] > 0:  # A country is only relevant if its export limit and minimum number of gifts requires are > 0
-      countries[country_info[0]] = country_info  # {id_country: [id_country, export_limit, min_toys_required]}
-      min_required_toys += country_info[2]
+  countries = {} # {id_country: [export_limit, min_gifts_required]}
+  global_min_required_gifts = 0
+  for id_factory in range(n + 1, n + m + 1):
+    country_info = list(map(int, data[id_factory].split())) # [id_country, export_limit, min_gifts_required]
+    # A country is only relevant if its export limit and minimum number of gifts required are > 0
+    if country_info[1] > 0 and country_info[2] > 0:
+      countries[country_info[0]] = country_info[1:]
+      global_min_required_gifts += country_info[2]
   
   # Early exit if total available stock globally is less than the total minimum number of required gifts.
-  if sum(country_stock) < min_required_toys:
+  if sum(stock_per_country.values()) < global_min_required_gifts:
     print("-1")
     return
 
-  # Parse the requests of t children.
-  requests = []    
-  for i in range(n + m + 1, n + m + t + 1):
-    request_info = list(map(int, data[i].split()))
-    valid_factories = [factory for factory in request_info[2:] if factory in factories]
+  # Parse info regarding the requests of each of the t children.
+  requests = {}
+  requested_factories = {}
+  for id_factory in range(n + m + 1, n + m + t + 1):
+    request_info = list(map(int, data[id_factory].split())) # [id_child, id_country, factory_ids]
+    valid_factories = list(filter(lambda factory_id: factory_id in factories.keys(), request_info[2:]))
     if valid_factories: # Only consider requests with valid factories.
-      requests.append([request_info[0], request_info[1], valid_factories]) # [id_child, id_country, fab_ids]
+      requests[request_info[0]] = [request_info[1], valid_factories] # {id_child: [id_country, factory_ids]}
+      requests_per_country.setdefault(request_info[1], set()).add(request_info[0])
+      requested_factories[request_info[0]] = set(valid_factories)
 
   t = len(requests)
 
-  factories_per_country = {}
-  requests_per_country = {}
-  
-  for j in countries:
-    factories_per_country[j] = set(i for i in factories if factories[i][1] == j)
-    requests_per_country[j] = set(k for k in range(t) if requests[k][1] == j)
-
-  # Ensure that children only receive gifts from their requested factories.
-  valid_factories = {k: set(requests[k][2]) for k in range(t)}
-
   problem = LpProblem(sense=LpMaximize)
   
-  # Binary decision variables: happy[k][i] is 1 if child k receives a gift from factory i, 0 otherwise.
-  happy = LpVariable.dicts("happy", ((k, i) for k in range(t) for i in valid_factories[k]), cat='Binary')
+  # Binary decision variables: happy[id_child][id_factory] is 1 if the child identified through id_child receives a gift from factory identified with id_factory, 0 otherwise.
+  happy = LpVariable.dicts("happy", ((id_child, id_factory) for id_child in requests for id_factory in requested_factories[id_child]), cat='Binary')
 
   # Maximize the number of fulfilled requests.
-  problem += lpSum(happy[k, i] for k in range(t) for i in valid_factories[k])
+  problem += lpSum(happy[id_child, id_factory] for id_child in requests for id_factory in requested_factories[id_child])
 
   # Create data structs used to make the constraints for the LP solver.
-  factory_sums = {i: [] for i in factories}
-  country_exports = {j: [] for j in countries}
-  child_assignments = []
+  num_requests_per_factory = {factory_id: 0 for factory_id in factories}
+  country_exports = {country_id: [] for country_id in countries}
+  children = []
   
-  # Only passes one time for each child.
-  for k in range(t):
+  for id_child in requests:
     # Each child can receive at most one gift.
-    child_assignments.append((k, valid_factories[k]))
+    children.append((id_child, requested_factories[id_child]))
     
-    # Check the number of gifts requested from each factory, so that it doesn't exceed it's stock.
-    for i in valid_factories[k]:
-      factory_sums[i].append((k, i))
+    # A factory cannot distribute more gifts that it has in stock.
+    for id_factory in requested_factories[id_child]:
+      num_requests_per_factory[id_factory] += 1
     
-    # Check if the factories doesn't exceed the maximun permited exports for the country.
-    for j in countries:
-      for i in factories_per_country[j]:
-        if i in valid_factories[k] and requests[k][1] != j:
-          country_exports[j].append((k, i))
+    # Check if the factories don't exceed the maximum permitted exports for the country.
+    for id_country in countries:
+      for id_factory in factories_per_country[id_country]:
+        if id_factory in requested_factories[id_child] and requests[id_child][0] != id_country:
+          country_exports[id_country].append((id_child, id_factory))
   
-  # Create the constraints using pre calculated values.
-  for k, valid_facs in child_assignments:
-    problem += lpSum(happy[k, i] for i in valid_facs) <= 1
+  # Create the constraints using pre-calculated values.
+  for id_child, valid_factories in children:
+    problem += lpSum(happy[id_child, id_factory] for id_factory in valid_factories) <= 1
   
   # A factory cannot distribute more gifts than it has in stock.
-  for i in factories:
-    problem += lpSum(happy[k, i] for k, i in factory_sums[i]) <= factories[i][2]
+  for id_factory in factories:
+    problem += lpSum(happy[id_child, id_factory] for id_child in requests if id_factory in requested_factories[id_child]) <= factories[id_factory][1]
   
-  for j in countries:
+  for id_country in countries:
     # A country cannot export more gifts than its export limit.
-    problem += lpSum(happy[k, i] for k, i in country_exports[j]) <= countries[j][1]
+    problem += lpSum(happy[id_child, id_factory] for id_child, id_factory in country_exports[id_country]) <= countries[id_country][0]
 
     # A country must receive at least its minimum number required gifts.
-    problem += lpSum(happy[k, i] for k in requests_per_country[j] for i in valid_factories[k]) >= countries[j][2]
+    problem += lpSum(happy[id_child, id_factory] for id_child in requests_per_country[id_country] for id_factory in requested_factories[id_child]) >= countries[id_country][1]
 
   # Solve the problem and check if it has an optimal solution.
   if problem.solve(GLPK(msg=False)) == LpStatusOptimal:
