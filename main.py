@@ -1,4 +1,3 @@
-#pylint: skip-file
 import sys
 from pulp import GLPK, LpMaximize, LpProblem, LpStatusOptimal, LpVariable, lpSum, value
 
@@ -16,7 +15,6 @@ class Country:
     self.min_gifts = min_gifts
     self.exports = []
     self.chosen_factories = []
-    self.num_country_requests = 0
 
 class Child:
   def __init__(self, id, factories):
@@ -54,7 +52,6 @@ def main():
       if factory.country.id != country_id:
         countries[factory.country.id].exports.append((children[child_id].id, factory.id))
       factory.requests.append(children[child_id])
-      countries[country_id].num_country_requests += 1
 
   # Create LP problem
   problem = LpProblem(sense=LpMaximize)
