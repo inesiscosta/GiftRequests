@@ -49,17 +49,17 @@ def main():
     child_id, country_id, *requested_factories = map(int, data[line].split())
     valid_factories = [factories[factory_id] for factory_id in requested_factories if factory_id in factories]
     children[child_id] = Child(child_id, valid_factories)
-    for factory_id in requested_factories:
-      countries[country_id].chosen_factories.append((child_id, factory_id))
-      if factories[factory_id].country.id != country_id:
-        countries[factories[factory_id].country.id].exports.append((children[child_id].id, factory_id))
-      factories[factory_id].requests.append(children[child_id])
+    for factory in valid_factories:
+      countries[country_id].chosen_factories.append((child_id, factory.id))
+      if factory.country.id != country_id:
+        countries[factory.country.id].exports.append((children[child_id].id, factory.id))
+      factory.requests.append(children[child_id])
       countries[country_id].num_country_requests += 1
 
   # Create LP problem
   problem = LpProblem(sense=LpMaximize)
 
-  happy = {(child.id, factory.id): LpVariable(f"happy_{child.id}_{factory.id}", cat='Binary') for child in children.values() for factory in child.factories}
+  happy = LpVariable.dicts("happy", ((child.id, factory.id) for child in children.values() for factory in child.factories), cat='Binary')
 
   problem += lpSum(happy[child.id, factory.id] for child in children.values() for factory in child.factories)
 

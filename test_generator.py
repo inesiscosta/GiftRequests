@@ -16,12 +16,12 @@ def generate_request(requests, facts):
 		
 def print_usage(argv, msg=None):
     if msg: print('Error:',msg)
-    print(f"Usage: python3 {argv[0]} <num_factories> <num_countries> <num_children> <max_factory_capacity>")
+    print(f"Usage: python3 {argv[0]} <num_factories> <num_countries> <num_children> <variance> <max_factory_capacity> <max_requests>")
     exit(1)
     
 # Example usage
 if __name__ == "__main__":
-    if len(sys.argv) < 4:
+    if len(sys.argv) < 7:
         print_usage(sys.argv, 'Missing arguments')
 
     num_factories = int(sys.argv[1])
