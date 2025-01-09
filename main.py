@@ -1,6 +1,6 @@
 #pylint: skip-file
 import sys
-from pulp import GLPK, LpMaximize, LpProblem, LpVariable, lpSum, value
+from pulp import GLPK, LpMaximize, LpProblem, LpStatusOptimal, LpVariable, lpSum, value
 
 class Factory:
   def __init__(self, id, country, stock):
@@ -18,9 +18,8 @@ class Country:
     self.exports = []
 
 class Child:
-  def __init__(self, id, country, factories):
+  def __init__(self, id, factories):
     self.id = id
-    self.country = country
     self.factories = factories
 
 def main():
@@ -48,7 +47,7 @@ def main():
   for line in range(num_factories + num_countries + 1, num_factories + num_countries + num_children + 1):
     child_id, country_id, *requested_factories = map(int, data[line].split())
     valid_factories = [factories[factory_id] for factory_id in requested_factories if factory_id in factories]
-    children[child_id] = Child(child_id, countries[country_id], valid_factories)
+    children[child_id] = Child(child_id, valid_factories)
     countries[country_id].children.append(children[child_id])
     for factory_id in requested_factories:
       if factories[factory_id].country.id != country_id:
@@ -79,7 +78,8 @@ def main():
     # A country cannot export more gifts than its export limit.
     problem += lpSum(happy[id_child, id_factory] for (id_child, id_factory) in country.exports) <= country.export_limit
 
-  if problem.solve(GLPK(msg=0)) == 1:
+  # Solve the problem and check if it has an optimal solution.
+  if problem.solve(GLPK(msg=False)) == LpStatusOptimal:
     print(int(value(problem.objective)))
   else:
     print("-1")
