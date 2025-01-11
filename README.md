@@ -23,7 +23,7 @@ It determines the number of gift requests made by childern around the world that
 
 ### Example input:
 
-```
+<pre>
 3 2 3
 1 1 1
 2 1 1
@@ -33,7 +33,7 @@ It determines the number of gift requests made by childern around the world that
 1 1 2 3
 2 1 2 1
 3 2 1
-```
+</pre>
 
 ### Running the program:
 
