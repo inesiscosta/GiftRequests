@@ -2,7 +2,7 @@
 from io import StringIO
 import sys
 sys.path.insert(0, './')
-import main as project
+import src.main as project
 
 class TestGivenExamples:
 

@@ -38,11 +38,11 @@ It determines the number of gift requests made by childern around the world that
 ### Running the program:
 
 ```shell
-python main.py < input_file.txt
+python ./src/main.py < input_file.txt
 ```
 
 ### Running public test using pytest:
 
 ```shell
-python -m pytest test_public.py
+python -m pytest ./tests/test_public.py
 ```
