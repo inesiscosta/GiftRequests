@@ -1,6 +1,7 @@
 #pylint: skip-file
 from io import StringIO
 import sys
+sys.path.insert(0, './')
 import main as project
 
 class TestGivenExamples:
