@@ -15,9 +15,9 @@ It determines the number of gift requests made by childern around the world that
 
 - The first line contains three integers: the number of factories `n`, the number of countries `m`, and the number of children `t`.
 
--  The next `n` lines each contain three integers: the factory ID `i`, the country ID `j` where the factory is located, and the maximum stock `f_maxi` of the factory.
+-  The next `n` lines each contain three integers: the factory ID `i`, the country ID `j` where the factory is located, and the maximum stock `f_max_i` of the factory.
 
-- The next `m` lines each contain three integers: the country ID `j`, the maximum export limit `p_maxj`, and the minimum number of gifts `p_minj` to be delivered in that country.
+- The next `m` lines each contain three integers: the country ID `j`, the maximum export limit `p_max_j`, and the minimum number of gifts `p_min_j` to be delivered in that country.
 
 - The next `t` lines each contain the child ID `k`, the country ID `j` where the child lives, and the IDs of the factories from which the child requests toys.
 
@@ -41,7 +41,7 @@ It determines the number of gift requests made by childern around the world that
 python ./src/main.py < input_file.txt
 ```
 
-### Running public test using pytest:
+### Running public tests using pytest:
 
 ```shell
 python -m pytest ./tests/test_public.py
